@@ -99,21 +99,24 @@ impl<I: StorageIterator> FusedIterator<I> {
 }
 
 impl<I: StorageIterator> StorageIterator for FusedIterator<I> {
-    type KeyType<'a> = I::KeyType<'a> where Self: 'a;
+    type KeyType<'a>
+        = I::KeyType<'a>
+    where
+        Self: 'a;
 
     fn is_valid(&self) -> bool {
         !self.has_errored && self.iter.is_valid()
     }
 
     fn key(&self) -> Self::KeyType<'_> {
-        if self.has_errored || !self.iter.is_valid() {
+        if !self.is_valid() {
             panic!("invalid access to the underlying iterator");
         }
         self.iter.key()
     }
 
     fn value(&self) -> &[u8] {
-        if self.has_errored || !self.iter.is_valid() {
+        if !self.is_valid() {
             panic!("invalid access to the underlying iterator");
         }
         self.iter.value()

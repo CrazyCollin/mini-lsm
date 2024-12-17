@@ -84,6 +84,19 @@ a->1, b->del, c->4, d->5, e->4
 
 The constructor of the merge iterator takes a vector of iterators. We assume the one with a lower index (i.e., the first one) has the latest data.
 
+When using the Rust binary heap, you may find the `peek_mut` function useful.
+
+```rust,no_run
+let Some(mut inner) = heap.peek_mut() {
+    *inner += 1; // <- do some modifications to the inner item
+}
+// When the PeekMut reference gets dropped, the binary heap gets reordered automatically.
+
+let Some(mut inner) = heap.peek_mut() {
+    PeekMut::pop(inner) // <- pop it out from the heap
+}
+```
+
 One common pitfall is on error handling. For example,
 
 ```rust,no_run
@@ -103,7 +116,7 @@ Starting this section, we will use `Key<T>` to represent LSM key types and disti
 In this task, you will need to modify:
 
 ```
-src/iterators/lsm_iterator.rs
+src/lsm_iterator.rs
 ```
 
 We use the `LsmIterator` structure to represent the internal LSM iterators. You will need to modify this structure multiple times throughout the tutorial when more iterators are added into the system. For now, because we only have multiple memtables, it should be defined as:
@@ -123,7 +136,7 @@ Then, we want to provide extra safety on the iterator to avoid users from misusi
 In this task, you will need to modify:
 
 ```
-src/iterators/lsm_storage.rs
+src/lsm_storage.rs
 ```
 
 We are finally there -- with all iterators you have implemented, you can finally implement the `scan` interface of the LSM engine. You can simply construct an LSM iterator with the memtable iterators (remember to put the latest memtable at the front of the merge iterator), and your storage engine will be able to handle the scan request.

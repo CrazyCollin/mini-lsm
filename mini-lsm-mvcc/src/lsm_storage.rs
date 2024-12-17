@@ -173,7 +173,7 @@ pub struct MiniLsm {
     pub(crate) inner: Arc<LsmStorageInner>,
     /// Notifies the L0 flush thread to stop working. (In week 1 day 6)
     flush_notifier: crossbeam_channel::Sender<()>,
-    /// The handle for the compaction thread. (In week 1 day 6)
+    /// The handle for the flush thread. (In week 1 day 6)
     flush_thread: Mutex<Option<std::thread::JoinHandle<()>>>,
     /// Notifies the compaction thread to stop working. (In week 2)
     compaction_notifier: crossbeam_channel::Sender<()>,
@@ -368,8 +368,8 @@ impl LsmStorageInner {
                         memtables.insert(x);
                     }
                     ManifestRecord::Compaction(task, output) => {
-                        let (new_state, _) =
-                            compaction_controller.apply_compaction_result(&state, &task, &output);
+                        let (new_state, _) = compaction_controller
+                            .apply_compaction_result(&state, &task, &output, true);
                         // TODO: apply remove again
                         state = new_state;
                         next_sst_id =
@@ -399,6 +399,20 @@ impl LsmStorageInner {
             println!("{} SSTs opened", sst_cnt);
 
             next_sst_id += 1;
+
+            // Sort SSTs on each level (only for leveled compaction)
+            if let CompactionController::Leveled(_) = &compaction_controller {
+                for (_id, ssts) in &mut state.levels {
+                    ssts.sort_by(|x, y| {
+                        state
+                            .sstables
+                            .get(x)
+                            .unwrap()
+                            .first_key()
+                            .cmp(state.sstables.get(y).unwrap().first_key())
+                    })
+                }
+            }
 
             // recover memtables
             if options.enable_wal {
@@ -513,7 +527,7 @@ impl LsmStorageInner {
         let l0_iter = MergeIterator::create(l0_iters);
         let mut level_iters = Vec::with_capacity(snapshot.levels.len());
         for (_, level_sst_ids) in &snapshot.levels {
-            let mut level_ssts = Vec::with_capacity(snapshot.levels[0].1.len());
+            let mut level_ssts = Vec::with_capacity(level_sst_ids.len());
             for table in level_sst_ids {
                 let table = snapshot.sstables[table].clone();
                 if keep_table(key, &table) {

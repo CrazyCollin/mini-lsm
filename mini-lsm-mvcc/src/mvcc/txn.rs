@@ -179,7 +179,7 @@ type SkipMapRangeIter<'a> =
 pub struct TxnLocalIterator {
     /// Stores a reference to the skipmap.
     map: Arc<SkipMap<Bytes, Bytes>>,
-    /// Stores a skipmap iterator that refers to the lifetime of `MemTableIterator` itself.
+    /// Stores a skipmap iterator that refers to the lifetime of `TxnLocalIterator` itself.
     #[borrows(map)]
     #[not_covariant]
     iter: SkipMapRangeIter<'this>,
@@ -252,7 +252,10 @@ impl TxnIterator {
 }
 
 impl StorageIterator for TxnIterator {
-    type KeyType<'a> = &'a [u8] where Self: 'a;
+    type KeyType<'a>
+        = &'a [u8]
+    where
+        Self: 'a;
 
     fn value(&self) -> &[u8] {
         self.iter.value()
